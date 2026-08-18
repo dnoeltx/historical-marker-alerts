@@ -25,6 +25,10 @@ permissions:
 
 jobs:
   build:
+    # This name is what GitHub registers as the status check, and it is what
+    # branch protection on main requires. Keep it in sync with ChecklistV1 so
+    # both repos protect identically.
+    name: Build & test
     runs-on: ubuntu-latest
     timeout-minutes: 20
 
