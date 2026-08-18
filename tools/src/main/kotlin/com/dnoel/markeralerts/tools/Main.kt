@@ -30,6 +30,12 @@ import kotlin.system.exitProcess
  */
 fun main(args: Array<String>) {
     val opts = Options.parse(args)
+
+    opts.benchmark?.let {
+        Benchmark.run(it)
+        return
+    }
+
     val json = Json { ignoreUnknownKeys = true; isLenient = true }
 
     // Wikimedia's User-Agent policy asks for a real contact address so they can
@@ -113,7 +119,14 @@ fun main(args: Array<String>) {
 
     println()
     println("== 4/4  Writing database ==")
-    DatabaseWriter(opts.output).write(enriched, roomIdentityHash = null)
+    val identityHash = RoomSchema.readIdentityHash(opts.schema)
+    if (identityHash == null) {
+        println("   WARNING: no schema at ${opts.schema} — writing an unstamped database.")
+        println("   Room will refuse to open it. Build :app first so Room exports its schema.")
+    } else {
+        println("   stamping room_master_table with identityHash $identityHash")
+    }
+    DatabaseWriter(opts.output).write(enriched, roomIdentityHash = identityHash)
 
     report(enriched, opts, http)
 
@@ -175,6 +188,8 @@ internal data class Options(
     val limit: Int,
     val refresh: Boolean,
     val maxAgeDays: Long?,
+    val schema: Path,
+    val benchmark: Path?,
 ) {
     companion object {
         fun parse(args: Array<String>): Options {
@@ -211,6 +226,11 @@ internal data class Options(
                 // Wikipedia summaries drift slowly and re-harvesting five
                 // states costs ~8 minutes, so nothing expires unless asked.
                 maxAgeDays = map["max-age-days"]?.toLong(),
+                schema = Path.of(
+                    map["schema"]
+                        ?: "app/schemas/com.dnoel.markeralerts.data.MarkerDatabase/1.json",
+                ),
+                benchmark = map["benchmark"]?.let(Path::of),
             )
         }
     }
