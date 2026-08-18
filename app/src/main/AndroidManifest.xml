@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!--
+        Permissions arrive at the milestone that needs them, not up front:
+          M3 adds ACCESS_FINE_LOCATION, FOREGROUND_SERVICE,
+                  FOREGROUND_SERVICE_LOCATION and POST_NOTIFICATIONS,
+                  plus the location-typed TripService.
+        ACCESS_BACKGROUND_LOCATION is deliberately absent and stays absent for
+        v1 — "Start Trip" runs a foreground service started while the app is
+        visible, which only needs "While using the app".
+    -->
+
+    <application
+        android:allowBackup="true"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.MarkerAlerts">
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:label="@string/app_name"
+            android:theme="@style/Theme.MarkerAlerts">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+    </application>
+
+</manifest>

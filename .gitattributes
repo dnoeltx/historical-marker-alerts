@@ -1,0 +1,26 @@
+# Let git normalize line endings: LF in the repository, native in working copies.
+# This makes behaviour a property of the repo rather than of each developer's
+# core.autocrlf setting.
+* text=auto
+
+# Shell scripts must keep LF even when checked out on Windows — a CRLF here
+# makes Linux fail with "bad interpreter: /bin/sh^M", which is exactly how CI
+# breaks on an Ubuntu runner.
+*.sh      text eol=lf
+gradlew   text eol=lf
+
+# Windows batch files must keep CRLF.
+*.bat     text eol=crlf
+*.cmd     text eol=crlf
+
+# Never touch these.
+*.jar      binary
+*.png      binary
+*.jpg      binary
+*.jpeg     binary
+*.webp     binary
+*.keystore binary
+
+# The prebuilt marker database is a binary asset produced by :tools (M1).
+*.db       binary
+*.sqlite   binary

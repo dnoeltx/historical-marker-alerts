@@ -1,0 +1,57 @@
+# Continuous integration: every pull request into main, and every push to main,
+# must compile and pass the unit tests.
+#
+# Action versions were verified against the live GitHub API on 2026-08-18
+# (checkout v7.0.1, setup-java v5.7.0, gradle/actions v6.3.0,
+# upload-artifact v7.0.1). These move fast —
+# check `gh api repos/<owner>/<repo>/releases/latest --jq .tag_name` before
+# bumping rather than trusting recall.
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+# A second push to the same branch makes the first run irrelevant — cancel it
+# instead of paying for both.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v7
+
+      # Temurin 21 matches the JDK installed locally, so a green CI run and a
+      # green local build mean the same thing.
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - uses: gradle/actions/setup-gradle@v6
+
+      - name: Compile
+        run: ./gradlew compileDebugKotlin --console=plain
+
+      # Only the debug variant has unit tests: AGP 9 does not generate
+      # testReleaseUnitTest, and asking for it fails with an opaque Gradle
+      # "name expansion" error that reads like a failing test.
+      - name: Unit tests
+        run: ./gradlew testDebugUnitTest --console=plain
+
+      - name: Upload test report
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-results
+          path: app/build/reports/tests/

@@ -1,0 +1,40 @@
+*.iml
+.gradle
+/local.properties
+local.properties
+.DS_Store
+/build
+**/build
+.kotlin
+/captures
+.externalNativeBuild
+.cxx
+
+# Signing material must never be committed. The real keystore lives outside
+# this repository entirely; these patterns are a safety net against an
+# accidental copy or a stray base64 dump landing here.
+*.jks
+*.keystore
+*.p12
+keystore.b64
+keystore.properties
+
+# Intermediate output from the :tools ingestion pipeline (raw NRHP pages and
+# cached Wikipedia responses). Only the finished .db asset is committed — the
+# scratch data is large, re-fetchable, and would bloat history.
+/tools/scratch/
+
+# IDE (Android Studio / IntelliJ) files.
+#
+# Ignore everything under .idea/ — it is per-developer machine state (selected
+# run target, connected devices, local SDK paths, and the Gradle JDK choice).
+# The one exception is the shared code style, which is a project-wide decision
+# worth version-controlling.
+#
+# Note the order: .idea/codeStyles must be re-included before its contents can
+# be, because git cannot un-ignore a file inside an ignored directory.
+.idea/*
+!/.idea/codeStyles
+/.idea/codeStyles/*
+!/.idea/codeStyles/Project.xml
+!/.idea/codeStyles/codeStyleConfig.xml

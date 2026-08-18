@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Launcher icon background. Kept in XML so the whole icon is text-based
+         and reviewable in a diff — no binary PNGs in this repo. -->
+    <color name="ic_launcher_background">#3E5641</color>
+</resources>

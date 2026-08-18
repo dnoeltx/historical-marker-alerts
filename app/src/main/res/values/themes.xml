@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+        Colors and typography live in Compose (ui/theme/*.kt). This XML theme
+        exists only so the Activity has something to start with before Compose
+        takes over, which is why it inherits from a platform theme rather than
+        pulling in the Material Components XML library for styles nothing uses.
+    -->
+    <style name="Theme.MarkerAlerts" parent="android:Theme.Material.Light.NoActionBar" />
+</resources>
