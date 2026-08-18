@@ -1,0 +1,128 @@
+{
+  "formatVersion": 1,
+  "database": {
+    "version": 1,
+    "identityHash": "d1aa1b954ee98d140e8375d096a421f7",
+    "entities": [
+      {
+        "tableName": "markers",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`geomId` TEXT NOT NULL, `refnum` TEXT NOT NULL, `name` TEXT NOT NULL, `resType` TEXT, `address` TEXT, `city` TEXT, `county` TEXT, `state` TEXT NOT NULL, `certDate` TEXT, `lat` REAL NOT NULL, `lon` REAL NOT NULL, `alertable` INTEGER NOT NULL, `wikiTitle` TEXT, `wikiUrl` TEXT, `blurb` TEXT, PRIMARY KEY(`geomId`))",
+        "fields": [
+          {
+            "fieldPath": "geomId",
+            "columnName": "geomId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "refnum",
+            "columnName": "refnum",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "name",
+            "columnName": "name",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "resType",
+            "columnName": "resType",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "address",
+            "columnName": "address",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "city",
+            "columnName": "city",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "county",
+            "columnName": "county",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "state",
+            "columnName": "state",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "certDate",
+            "columnName": "certDate",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "lat",
+            "columnName": "lat",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lon",
+            "columnName": "lon",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "alertable",
+            "columnName": "alertable",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "wikiTitle",
+            "columnName": "wikiTitle",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "wikiUrl",
+            "columnName": "wikiUrl",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "blurb",
+            "columnName": "blurb",
+            "affinity": "TEXT"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "geomId"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_markers_lat_lon",
+            "unique": false,
+            "columnNames": [
+              "lat",
+              "lon"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_markers_lat_lon` ON `${TABLE_NAME}` (`lat`, `lon`)"
+          },
+          {
+            "name": "index_markers_refnum",
+            "unique": false,
+            "columnNames": [
+              "refnum"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_markers_refnum` ON `${TABLE_NAME}` (`refnum`)"
+          }
+        ]
+      }
+    ],
+    "setupQueries": [
+      "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'd1aa1b954ee98d140e8375d096a421f7')"
+    ]
+  }
+}
