@@ -45,13 +45,14 @@ jobs:
       - uses: gradle/actions/setup-gradle@v6
 
       - name: Compile
-        run: ./gradlew compileDebugKotlin --console=plain
+        run: ./gradlew :app:compileDebugKotlin :tools:compileKotlin --console=plain
 
-      # Only the debug variant has unit tests: AGP 9 does not generate
-      # testReleaseUnitTest, and asking for it fails with an opaque Gradle
-      # "name expansion" error that reads like a failing test.
+      # Both modules are named explicitly. `testDebugUnitTest` alone is an
+      # Android task and would silently skip every :tools test; a bare `test`
+      # would try to resolve testReleaseUnitTest, which AGP 9 does not generate
+      # and which fails with an opaque Gradle "name expansion" error.
       - name: Unit tests
-        run: ./gradlew testDebugUnitTest --console=plain
+        run: ./gradlew :app:testDebugUnitTest :tools:test --console=plain
 
       - name: Upload test report
         if: failure()

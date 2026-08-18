@@ -25,6 +25,8 @@ dependencyResolutionManagement {
 rootProject.name = "historical-marker-alerts"
 include(":app")
 
-// The :tools module arrives in M1. It is a plain JVM module that fetches NRHP
-// records and Wikipedia blurbs and emits the prebuilt SQLite asset, so it is
-// deliberately NOT an Android module and never ships in the APK.
+// :tools fetches NRHP records and Wikipedia blurbs and emits the prebuilt
+// SQLite asset. It is a plain JVM module, deliberately NOT an Android one, and
+// nothing in :app depends on it — it never ships in the APK. It is run by hand
+// when the marker data needs regenerating, not as part of a normal build.
+include(":tools")
