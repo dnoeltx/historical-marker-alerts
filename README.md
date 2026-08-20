@@ -18,9 +18,14 @@ AI-assisted coding. Signed release builds are published automatically on the
 
 ## Screenshots
 
-| Start a trip | Permission |
-|:--:|:--:|
-| <img src="docs/screenshots/start-trip-dark.png" width="220" alt="The trip screen in dark theme, with a Start trip button and a Read aloud automatically switch"> | <img src="docs/screenshots/permission-dark.png" width="220" alt="The Android location permission dialog offering Precise or Approximate, with While using the app as the first option"> |
+| Mid-drive | Start a trip | Permission |
+|:--:|:--:|:--:|
+| <img src="docs/screenshots/trip-active-dark.jpg" width="220" alt="A trip in progress showing 261 location fixes and two sites that have alerted: Austin Central Fire Station #1 and the French Legation, each with a Wikipedia summary"> | <img src="docs/screenshots/start-trip-dark.png" width="220" alt="The trip screen in dark theme, with a Start trip button and a Read aloud automatically switch"> | <img src="docs/screenshots/permission-dark.png" width="220" alt="The Android location permission dialog offering Precise or Approximate, with While using the app as the first option"> |
+
+The first is a real drive east of Austin — 261 location fixes in, two sites
+already announced, and a navigation instruction visible in the status bar
+because the whole point is that this runs alongside your map app rather than
+instead of it.
 
 The permission dialog is worth a second look: it offers **"While using the
 app"**, not "Allow all the time". That is a design decision, described under

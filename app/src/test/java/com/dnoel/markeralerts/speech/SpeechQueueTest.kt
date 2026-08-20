@@ -43,7 +43,12 @@ class SpeechQueueTest {
         engine: FakeEngine = FakeEngine(),
         focus: FakeFocus = FakeFocus(),
         maxWaitMillis: Long = SpeechQueue.DEFAULT_MAX_WAIT_MILLIS,
-    ) = SpeechQueue(engine, focus, maxWaitMillis) { clock }
+        // Named, not a trailing lambda. When `onSpeakingChanged` was added as
+        // the last parameter, a trailing `{ clock }` here silently re-bound to
+        // it and `now` fell back to the real system clock — the fake clock
+        // stopped working and the staleness tests passed for the wrong reason.
+        // Nothing about that is a compile error, so name the argument.
+    ) = SpeechQueue(engine, focus, maxWaitMillis, now = { clock })
 
     @Test
     fun `a second marker waits its turn instead of interrupting`() {
@@ -221,6 +226,55 @@ class SpeechQueueTest {
         q.clear()
 
         assertEquals(0, focus.abandons)
+    }
+
+    @Test
+    fun `the speaking id is reported as it changes`() {
+        val seen = mutableListOf<String?>()
+        val engine = FakeEngine()
+        val q = SpeechQueue(engine, FakeFocus(), SpeechQueue.DEFAULT_MAX_WAIT_MILLIS, { clock }) {
+            seen += it
+        }
+
+        q.enqueue("a", "first")
+        q.enqueue("b", "second")
+        q.onDone("a")
+        q.onDone("b")
+
+        // The null between "a" and "b" is real — speech genuinely stopped
+        // before the next utterance began. Both writes happen synchronously
+        // inside onDone, so the StateFlow they drive conflates them and the UI
+        // never renders the gap.
+        assertEquals(listOf("a", null, "b", null), seen)
+    }
+
+    @Test
+    fun `the speaking id clears when speech is stopped`() {
+        val seen = mutableListOf<String?>()
+        val q = SpeechQueue(FakeEngine(), FakeFocus(), SpeechQueue.DEFAULT_MAX_WAIT_MILLIS, { clock }) {
+            seen += it
+        }
+
+        q.enqueue("a", "first")
+        q.clear()
+
+        assertEquals(listOf("a", null), seen)
+    }
+
+    @Test
+    fun `the speaking id is not reported twice for the same value`() {
+        val seen = mutableListOf<String?>()
+        val q = SpeechQueue(FakeEngine(), FakeFocus(), SpeechQueue.DEFAULT_MAX_WAIT_MILLIS, { clock }) {
+            seen += it
+        }
+
+        q.enqueue("a", "first")
+        q.onDone("a")
+        // Nothing queued behind it, so this drains to null exactly once — a
+        // repeat would make a StateFlow emit spuriously.
+        q.clear()
+
+        assertEquals(listOf("a", null), seen)
     }
 
     @Test

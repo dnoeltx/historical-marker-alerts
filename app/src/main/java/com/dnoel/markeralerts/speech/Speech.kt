@@ -2,6 +2,9 @@ package com.dnoel.markeralerts.speech
 
 import android.content.Context
 import com.dnoel.markeralerts.data.MarkerEntity
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 
 /**
  * Process-wide access to speech, for the same reason [TripState] is an object:
@@ -20,6 +23,17 @@ object Speech {
     private var engine: AndroidSpeechEngine? = null
     private var queue: SpeechQueue? = null
 
+    private val _speakingId = MutableStateFlow<String?>(null)
+
+    /**
+     * The geomId currently being read aloud, or null.
+     *
+     * Lets a list entry show "Stop" while it is the one talking. Lives here
+     * rather than on [SpeechQueue] so the queue stays free of coroutines and
+     * testable as plain Kotlin.
+     */
+    val speakingId: StateFlow<String?> = _speakingId.asStateFlow()
+
     @Synchronized
     private fun ensure(context: Context): SpeechQueue {
         queue?.let { return it }
@@ -30,17 +44,17 @@ object Speech {
         val created = AndroidSpeechEngine(context) { id -> queue?.onDone(id) }
         val gate = AndroidAudioFocusGate(context) { queue?.onFocusLost() }
 
-        val made = SpeechQueue(created, gate)
+        val made = SpeechQueue(created, gate) { id -> _speakingId.value = id }
         engine = created
         queue = made
         return made
     }
 
     /** Reads a marker aloud, behind anything already speaking. */
-    fun speak(context: Context, marker: MarkerEntity, distanceMeters: Double?) {
+    fun speak(context: Context, marker: MarkerEntity) {
         ensure(context).enqueue(
             id = marker.geomId,
-            text = Utterance.forMarker(marker, distanceMeters),
+            text = Utterance.forMarker(marker),
         )
     }
 

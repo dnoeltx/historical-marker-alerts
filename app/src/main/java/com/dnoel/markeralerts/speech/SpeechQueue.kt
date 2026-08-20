@@ -35,12 +35,27 @@ class SpeechQueue(
     private val focus: AudioFocusGate,
     private val maxWaitMillis: Long = DEFAULT_MAX_WAIT_MILLIS,
     private val now: () -> Long = System::currentTimeMillis,
+    /**
+     * Called with the id now being spoken, or null when nothing is.
+     *
+     * The UI needs this to offer "Stop" on the entry currently talking rather
+     * than "Play" — without it a card cannot tell whether it is the one making
+     * noise. Fired only on genuine changes, so it is safe to drive a StateFlow.
+     */
+    private val onSpeakingChanged: (String?) -> Unit = {},
 ) {
 
     private data class Pending(val id: String, val text: String, val queuedAt: Long)
 
     private val pending = ArrayDeque<Pending>()
+
     private var speaking: String? = null
+        set(value) {
+            if (field == value) return
+            field = value
+            onSpeakingChanged(value)
+        }
+
     private var holdsFocus = false
     private var droppedCount = 0
 
