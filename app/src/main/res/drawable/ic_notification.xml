@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Status-bar icons are drawn as a silhouette: the system keeps the alpha
+    channel and throws the colour away. So this is a solid white pin on a
+    transparent 24dp canvas, not a scaled-down launcher icon.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24"
+    android:tint="#FFFFFF">
+
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M12,2c-3.3,0 -6,2.7 -6,6c0,4.5 6,12 6,12s6,-7.5 6,-12C18,4.7 15.3,2 12,2zM12,10.5c-1.4,0 -2.5,-1.1 -2.5,-2.5s1.1,-2.5 2.5,-2.5s2.5,1.1 2.5,2.5S13.4,10.5 12,10.5z" />
+
+</vector>

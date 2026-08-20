@@ -19,7 +19,17 @@ data class ProximityAlert(
  * One instance per trip — the dedupe state is the trip's memory.
  */
 class ProximityDetector(
-    private val radiusMeters: Double = DEFAULT_RADIUS_METERS,
+    val radiusMeters: Double = DEFAULT_RADIUS_METERS,
+    /**
+     * Most alerts allowed from a single position fix.
+     *
+     * Measured on a replay of Austin to Denver: without this the drive produced
+     * 71 alerts whose *median* spacing was zero — they arrived in simultaneous
+     * bursts on entering a city. Nobody can listen to eight blurbs at once, so
+     * the closest one wins and the rest are dismissed. They remain visible in
+     * the trip's list; they just do not speak.
+     */
+    private val maxAlertsPerFix: Int = 1,
 ) {
     /** Markers already handled this trip, whether alerted or passed by. */
     private val settled = mutableSetOf<String>()
@@ -27,20 +37,39 @@ class ProximityDetector(
     /** Last measured distance, for working out which way we are moving. */
     private val lastDistance = mutableMapOf<String, Double>()
 
+    /** Markers seen but silenced — kept so the trip list can still show them. */
+    private val suppressed = mutableListOf<MarkerEntity>()
+
+    private var hadFirstFix = false
+
     /**
      * [candidates] should be the alertable markers inside
      * [BoundingBox.around]`(lat, lon, radiusMeters)` — this refines that
      * rectangle to a true circle and applies the alerting rules.
      */
     fun observe(lat: Double, lon: Double, candidates: List<MarkerEntity>): List<ProximityAlert> {
-        val alerts = mutableListOf<ProximityAlert>()
+        val inRange = candidates
+            .filter { it.geomId !in settled }
+            .map { it to haversineMeters(lat, lon, it.lat, it.lon) }
+            .filter { (_, distance) -> distance <= radiusMeters }
 
-        for (marker in candidates) {
-            if (marker.geomId in settled) continue
+        // The very first fix of a trip describes where you already are, not
+        // anything you are coming upon. Starting the app in downtown Austin
+        // should not announce every listed building around the car; the trip is
+        // about what you drive up on next. Everything already in range is
+        // silently retired.
+        if (!hadFirstFix) {
+            hadFirstFix = true
+            inRange.forEach { (marker, _) ->
+                settled += marker.geomId
+                suppressed += marker
+            }
+            return emptyList()
+        }
 
-            val distance = haversineMeters(lat, lon, marker.lat, marker.lon)
-            if (distance > radiusMeters) continue
+        val candidateAlerts = mutableListOf<ProximityAlert>()
 
+        for ((marker, distance) in inRange) {
             val previous = lastDistance.put(marker.geomId, distance)
 
             if (previous == null) {
@@ -50,8 +79,7 @@ class ProximityDetector(
                 // driven into range and are therefore approaching. Waiting in
                 // that case would burn part of the warning distance.
                 if (distance >= radiusMeters * EDGE_FRACTION) {
-                    settled += marker.geomId
-                    alerts += ProximityAlert(marker, distance)
+                    candidateAlerts += ProximityAlert(marker, distance)
                 }
                 continue
             }
@@ -64,17 +92,28 @@ class ProximityDetector(
                 continue
             }
 
-            settled += marker.geomId
-            alerts += ProximityAlert(marker, distance)
+            candidateAlerts += ProximityAlert(marker, distance)
         }
 
         // Closest first: if several land at once, the most imminent is the one
-        // worth hearing about first.
-        return alerts.sortedBy { it.distanceMeters }
+        // worth hearing about.
+        val ranked = candidateAlerts.sortedBy { it.distanceMeters }
+        val spoken = ranked.take(maxAlertsPerFix)
+        val silenced = ranked.drop(maxAlertsPerFix)
+
+        spoken.forEach { settled += it.marker.geomId }
+        silenced.forEach {
+            settled += it.marker.geomId
+            suppressed += it.marker
+        }
+        return spoken
     }
 
     /** Markers alerted or dismissed so far this trip. */
     fun settledCount(): Int = settled.size
+
+    /** Markers that were in range but never spoken — still worth listing. */
+    fun suppressedMarkers(): List<MarkerEntity> = suppressed.toList()
 
     companion object {
         /** ~3 miles: about 2.5 minutes of warning at 70 mph. */
