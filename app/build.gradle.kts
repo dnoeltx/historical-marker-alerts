@@ -13,6 +13,12 @@ room {
     schemaDirectory("$projectDir/schemas")
 }
 
+// Release signing is driven entirely by environment variables so that no
+// keystore path or password ever lives in the repository. On a normal dev
+// machine these are unset, the signing config is never created, and only debug
+// builds (auto-signed with the local debug key) are possible.
+val releaseKeystore = System.getenv("KEYSTORE_PATH")?.let(::file)
+
 // Version is supplied by the release workflow, derived from the git tag (M5).
 // The defaults are only used for local and debug builds.
 val appVersionName = (findProperty("appVersionName") as String?) ?: "0.1-dev"
@@ -39,8 +45,22 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    signingConfigs {
+        if (releaseKeystore != null) {
+            create("release") {
+                storeFile = releaseKeystore
+                storePassword = System.getenv("KEYSTORE_PASSWORD")
+                keyAlias = System.getenv("KEY_ALIAS")
+                keyPassword = System.getenv("KEY_PASSWORD")
+            }
+        }
+    }
+
     buildTypes {
         release {
+            // Null when the keystore env vars are absent, which leaves local
+            // debug work unaffected instead of failing the whole build script.
+            signingConfig = signingConfigs.findByName("release")
             optimization {
                 enable = false
             }
