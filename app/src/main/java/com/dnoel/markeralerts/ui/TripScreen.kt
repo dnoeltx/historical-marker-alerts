@@ -8,6 +8,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -19,7 +20,9 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -31,7 +34,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.dnoel.markeralerts.speech.Speech
 import com.dnoel.markeralerts.trip.TripAlert
+import com.dnoel.markeralerts.trip.TripPreferences
 import com.dnoel.markeralerts.trip.TripService
 import com.dnoel.markeralerts.trip.TripState
 
@@ -63,6 +68,7 @@ fun TripScreen(modifier: Modifier = Modifier) {
     val alerts by TripState.alerts.collectAsStateWithLifecycle()
     val fixCount by TripState.fixCount.collectAsStateWithLifecycle()
     val lastFix by TripState.lastFix.collectAsStateWithLifecycle()
+    val autoSpeak by TripPreferences.autoSpeak.collectAsStateWithLifecycle()
 
     var granted by remember { mutableStateOf(hasPermissions(context)) }
     var denied by remember { mutableStateOf(false) }
@@ -112,6 +118,28 @@ fun TripScreen(modifier: Modifier = Modifier) {
             ) { Text("Start trip") }
         }
 
+        // Deliberately on the main screen rather than behind a settings menu:
+        // this is the switch that decides whether the app can be used without
+        // touching the phone, so it should be reachable before pulling out of
+        // the driveway rather than discovered later.
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column {
+                Text("Read aloud automatically", style = MaterialTheme.typography.bodyMedium)
+                Text(
+                    if (autoSpeak) "No need to touch the phone" else "Tap an alert to hear it",
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            }
+            Switch(
+                checked = autoSpeak,
+                onCheckedChange = { TripPreferences.setAutoSpeak(context, it) },
+            )
+        }
+
         if (denied) {
             Text(
                 "Location permission is required to notice what you are driving past.",
@@ -130,14 +158,19 @@ fun TripScreen(modifier: Modifier = Modifier) {
             )
         } else {
             LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                items(alerts) { AlertCard(it) }
+                items(alerts) { alert ->
+                    AlertCard(
+                        alert = alert,
+                        onSpeak = { Speech.speak(context, alert.marker, alert.distanceMeters) },
+                    )
+                }
             }
         }
     }
 }
 
 @Composable
-private fun AlertCard(alert: TripAlert) {
+private fun AlertCard(alert: TripAlert, onSpeak: () -> Unit) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(12.dp)) {
             Text(alert.marker.name, style = MaterialTheme.typography.titleMedium)
@@ -148,6 +181,12 @@ private fun AlertCard(alert: TripAlert) {
             alert.marker.blurb?.let {
                 Spacer(Modifier.height(4.dp))
                 Text(it, style = MaterialTheme.typography.bodyMedium, maxLines = 4)
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End,
+            ) {
+                TextButton(onClick = onSpeak) { Text("Play") }
             }
         }
     }
