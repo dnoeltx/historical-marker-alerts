@@ -32,9 +32,12 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.MarkerAlerts">
 
+        <!-- singleTop: tapping an alert while the app is already open delivers
+             onNewIntent instead of stacking a second copy of the screen. -->
         <activity
             android:name=".MainActivity"
             android:exported="true"
+            android:launchMode="singleTop"
             android:label="@string/app_name"
             android:theme="@style/Theme.MarkerAlerts">
             <intent-filter>

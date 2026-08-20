@@ -9,8 +9,10 @@ import androidx.core.app.ServiceCompat
 import androidx.lifecycle.LifecycleService
 import androidx.lifecycle.lifecycleScope
 import com.dnoel.markeralerts.data.MarkerDatabase
+import com.dnoel.markeralerts.data.MarkerEntity
 import com.dnoel.markeralerts.domain.BoundingBox
 import com.dnoel.markeralerts.domain.ProximityDetector
+import com.dnoel.markeralerts.speech.Speech
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 
@@ -58,6 +60,11 @@ class TripService : LifecycleService() {
             },
         )
 
+        // Read synchronously: a trip that starts with the wrong auto-speak
+        // setting and corrects itself a moment later is worse than a brief
+        // disk read on a background-capable thread.
+        TripPreferences.load(this)
+
         TripState.startTrip()
         watchPosition()
 
@@ -87,10 +94,7 @@ class TripService : LifecycleService() {
         }
     }
 
-    private fun announce(
-        marker: com.dnoel.markeralerts.data.MarkerEntity,
-        distanceMeters: Double,
-    ) {
+    private fun announce(marker: MarkerEntity, distanceMeters: Double) {
         TripState.recordAlert(
             TripAlert(marker, distanceMeters, System.currentTimeMillis()),
         )
@@ -99,6 +103,13 @@ class TripService : LifecycleService() {
             marker.geomId.hashCode(),
             TripNotifications.alert(this, marker, distanceMeters),
         )
+
+        // With auto-speak on the driver never touches the phone, which is the
+        // point of the app. With it off the notification still fires and
+        // tapping it reads the same sentence.
+        if (TripPreferences.autoSpeak.value) {
+            Speech.speak(this, marker, distanceMeters)
+        }
     }
 
     private fun refreshOngoing() {
@@ -109,12 +120,15 @@ class TripService : LifecycleService() {
     }
 
     private fun stop() {
+        // Nothing queued should outlive the trip that queued it.
+        Speech.clear()
         TripState.endTrip()
         ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE)
         stopSelf()
     }
 
     override fun onDestroy() {
+        Speech.clear()
         TripState.endTrip()
         super.onDestroy()
     }
