@@ -31,15 +31,19 @@ class UtteranceTest {
     )
 
     @Test
-    fun `the sentence leads with distance and names the place`() {
-        val text = Utterance.forMarker(marker(), 4_800.0)
+    fun `the sentence leads with the name, not a distance`() {
+        val text = Utterance.forMarker(marker())
 
-        assertTrue(text, text.startsWith("In about 3 miles, Paramount Theatre."))
+        // Alerts fire on entry to the radius, so a spoken distance was always
+        // "about 3 miles" — ten times in a row on the first real drive. A
+        // number that never varies is not information.
+        assertTrue(text, text.startsWith("Paramount Theatre."))
+        assertFalse(text, text.contains("miles"))
     }
 
     @Test
     fun `Wikipedia is credited aloud`() {
-        val text = Utterance.forMarker(marker(), 4_800.0)
+        val text = Utterance.forMarker(marker())
 
         // The blurbs are CC BY-SA. A driver never sees the screen, so the
         // attribution has to be in the audio or it does not exist.
@@ -48,25 +52,17 @@ class UtteranceTest {
 
     @Test
     fun `a marker with no blurb is not credited to Wikipedia`() {
-        val text = Utterance.forMarker(marker(blurb = null), 4_800.0)
+        val text = Utterance.forMarker(marker(blurb = null))
 
-        assertEquals("In about 3 miles, Paramount Theatre.", text)
+        assertEquals("Paramount Theatre.", text)
         assertFalse(text.contains("Wikipedia"))
     }
 
     @Test
     fun `a blank blurb is treated as no blurb`() {
-        val text = Utterance.forMarker(marker(blurb = "   "), 4_800.0)
+        val text = Utterance.forMarker(marker(blurb = "   "))
 
-        assertEquals("In about 3 miles, Paramount Theatre.", text)
-    }
-
-    @Test
-    fun `replaying without a distance omits the claim rather than guessing`() {
-        val text = Utterance.forMarker(marker(), null)
-
-        assertTrue(text, text.startsWith("Paramount Theatre."))
-        assertFalse(text.contains("miles"))
+        assertEquals("Paramount Theatre.", text)
     }
 
     @Test

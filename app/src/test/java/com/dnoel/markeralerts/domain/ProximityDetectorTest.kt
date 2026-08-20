@@ -137,4 +137,53 @@ class ProximityDetectorTest {
         assertTrue(alerts.isEmpty())
         assertEquals(1, detector.settledCount())
     }
+
+    @Test
+    fun `testing mode announces what is already in range at the start`() {
+        val detector = ProximityDetector(radiusMeters = 1000.0, announceAtStart = true)
+        val near = marker("near", northOf(39.0, 100.0), -105.0)
+        val far = marker("far", northOf(39.0, 800.0), -105.0)
+
+        val alerts = detector.observe(39.0, -105.0, listOf(near, far))
+
+        // The whole point is exercising the app without driving, so the per-fix
+        // cap is deliberately not applied here — one alert would be a weak test.
+        assertEquals(listOf("near", "far"), alerts.map { it.marker.geomId })
+    }
+
+    @Test
+    fun `testing mode still ignores anything outside the radius`() {
+        val detector = ProximityDetector(radiusMeters = 1000.0, announceAtStart = true)
+        val inside = marker("in", northOf(39.0, 500.0), -105.0)
+        val outside = marker("out", northOf(39.0, 2_000.0), -105.0)
+
+        val alerts = detector.observe(39.0, -105.0, listOf(inside, outside))
+
+        assertEquals(listOf("in"), alerts.map { it.marker.geomId })
+    }
+
+    @Test
+    fun `testing mode does not repeat itself on later fixes`() {
+        val detector = ProximityDetector(radiusMeters = 1000.0, announceAtStart = true)
+        val here = marker("a", northOf(39.0, 100.0), -105.0)
+
+        assertEquals(1, detector.observe(39.0, -105.0, listOf(here)).size)
+
+        // Sitting still on a sofa produces fix after fix from the same spot.
+        // Announcing again each time would be unbearable.
+        assertTrue(detector.observe(39.0, -105.0, listOf(here)).isEmpty())
+        assertTrue(detector.observe(39.0, -105.0, listOf(here)).isEmpty())
+    }
+
+    @Test
+    fun `a configured radius is what decides range`() {
+        val target = marker("a", northOf(39.0, 2_500.0), -105.0)
+
+        // 2.5 km away: inside a 3 km radius, outside a 1 km one.
+        val wide = ProximityDetector(radiusMeters = 3_000.0, announceAtStart = true)
+        val narrow = ProximityDetector(radiusMeters = 1_000.0, announceAtStart = true)
+
+        assertEquals(1, wide.observe(39.0, -105.0, listOf(target)).size)
+        assertTrue(narrow.observe(39.0, -105.0, listOf(target)).isEmpty())
+    }
 }

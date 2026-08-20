@@ -62,10 +62,7 @@ class MainActivity : ComponentActivity() {
         lifecycleScope.launch {
             val marker = MarkerDatabase.build(applicationContext).markerDao().byId(geomId)
                 ?: return@launch
-            val distance = TripState.alerts.value
-                .firstOrNull { it.marker.geomId == geomId }
-                ?.distanceMeters
-            Speech.speak(this@MainActivity, marker, distance)
+            Speech.speak(this@MainActivity, marker)
         }
     }
 

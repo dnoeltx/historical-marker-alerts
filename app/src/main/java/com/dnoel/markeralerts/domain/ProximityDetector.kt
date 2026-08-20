@@ -30,6 +30,15 @@ class ProximityDetector(
      * the trip's list; they just do not speak.
      */
     private val maxAlertsPerFix: Int = 1,
+    /**
+     * When true, sites already within range at the first fix announce
+     * themselves instead of being retired silently.
+     *
+     * Wrong for driving — it would announce the building you are parked next to
+     * — but it is the only way to exercise the app without going anywhere,
+     * which otherwise makes every change a 15-mile round trip to verify.
+     */
+    private val announceAtStart: Boolean = false,
 ) {
     /** Markers already handled this trip, whether alerted or passed by. */
     private val settled = mutableSetOf<String>()
@@ -60,11 +69,23 @@ class ProximityDetector(
         // silently retired.
         if (!hadFirstFix) {
             hadFirstFix = true
-            inRange.forEach { (marker, _) ->
-                settled += marker.geomId
-                suppressed += marker
+            if (!announceAtStart) {
+                inRange.forEach { (marker, _) ->
+                    settled += marker.geomId
+                    suppressed += marker
+                }
+                return emptyList()
             }
-            return emptyList()
+            // Testing mode announces everything in range at once, nearest
+            // first, deliberately ignoring [maxAlertsPerFix]. The per-fix cap
+            // exists to stop a driver being buried; someone sitting on a sofa
+            // checking that alerts work wants the opposite — as much output as
+            // possible from a single fix. SpeechQueue still reads them one at a
+            // time and drops whatever goes stale.
+            return inRange.sortedBy { it.second }.map { (marker, distance) ->
+                settled += marker.geomId
+                ProximityAlert(marker, distance)
+            }
         }
 
         val candidateAlerts = mutableListOf<ProximityAlert>()

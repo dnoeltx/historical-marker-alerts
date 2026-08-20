@@ -21,17 +21,22 @@ object Utterance {
     private const val ATTRIBUTION = "From Wikipedia."
 
     /**
-     * [distanceMeters] is null when there is no meaningful distance to quote —
-     * replaying a marker from the list an hour later, say, where "in about 3
-     * miles" would be a lie.
+     * The spoken distance was dropped after the first real drive.
+     *
+     * Alerts fire on *entry* to the radius, so every one is between 90% and
+     * 100% of it — which rounded to half miles meant "In about 3 miles" every
+     * single time, ten times in a row. A number that never varies is not
+     * information, it is four syllables of throat-clearing in front of the part
+     * you actually want. The exact distance is still on the notification and
+     * the card, where it costs nothing and can be glanced at.
+     *
+     * [distancePhrase] survives as a separate function: it is still correct, it
+     * is still tested, and a future mode may want to say a distance when it
+     * genuinely differs. It just is not part of the standard alert.
      */
-    fun forMarker(marker: MarkerEntity, distanceMeters: Double?): String {
+    fun forMarker(marker: MarkerEntity): String {
         val blurb = marker.blurb?.trim().orEmpty()
-        val lead = if (distanceMeters == null) {
-            "${marker.name}."
-        } else {
-            "${distancePhrase(distanceMeters)}, ${marker.name}."
-        }
+        val lead = "${marker.name}."
         return if (blurb.isEmpty()) lead else "$lead $blurb $ATTRIBUTION"
     }
 

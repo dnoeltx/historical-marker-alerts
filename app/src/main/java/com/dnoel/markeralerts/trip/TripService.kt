@@ -29,7 +29,9 @@ import kotlinx.coroutines.launch
  */
 class TripService : LifecycleService() {
 
-    private val detector = ProximityDetector()
+    // Built in onStartCommand, once preferences are loaded: the radius and the
+    // announce-at-start behaviour are both fixed for the length of a trip.
+    private lateinit var detector: ProximityDetector
     private lateinit var locationSource: LocationSource
 
     override fun onCreate() {
@@ -43,6 +45,13 @@ class TripService : LifecycleService() {
 
         if (intent?.action == ACTION_STOP) {
             stop()
+            return START_NOT_STICKY
+        }
+
+        // Silence stops the current blurb and empties the queue but leaves the
+        // trip running — you still want to be told about the next site.
+        if (intent?.action == ACTION_SILENCE) {
+            Speech.clear()
             return START_NOT_STICKY
         }
 
@@ -64,6 +73,11 @@ class TripService : LifecycleService() {
         // setting and corrects itself a moment later is worse than a brief
         // disk read on a background-capable thread.
         TripPreferences.load(this)
+
+        detector = ProximityDetector(
+            radiusMeters = TripPreferences.radiusMeters,
+            announceAtStart = TripPreferences.announceAtStart.value,
+        )
 
         TripState.startTrip()
         watchPosition()
@@ -108,7 +122,7 @@ class TripService : LifecycleService() {
         // point of the app. With it off the notification still fires and
         // tapping it reads the same sentence.
         if (TripPreferences.autoSpeak.value) {
-            Speech.speak(this, marker, distanceMeters)
+            Speech.speak(this, marker)
         }
     }
 
@@ -135,6 +149,7 @@ class TripService : LifecycleService() {
 
     companion object {
         const val ACTION_STOP = "com.dnoel.markeralerts.STOP_TRIP"
+        const val ACTION_SILENCE = "com.dnoel.markeralerts.SILENCE"
 
         fun start(context: Context) {
             context.startForegroundService(Intent(context, TripService::class.java))

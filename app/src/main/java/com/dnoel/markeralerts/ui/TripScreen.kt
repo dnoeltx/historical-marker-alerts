@@ -18,6 +18,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Switch
@@ -69,6 +71,9 @@ fun TripScreen(modifier: Modifier = Modifier) {
     val fixCount by TripState.fixCount.collectAsStateWithLifecycle()
     val lastFix by TripState.lastFix.collectAsStateWithLifecycle()
     val autoSpeak by TripPreferences.autoSpeak.collectAsStateWithLifecycle()
+    val radiusMiles by TripPreferences.radiusMiles.collectAsStateWithLifecycle()
+    val announceAtStart by TripPreferences.announceAtStart.collectAsStateWithLifecycle()
+    val speakingId by Speech.speakingId.collectAsStateWithLifecycle()
 
     var granted by remember { mutableStateOf(hasPermissions(context)) }
     var denied by remember { mutableStateOf(false) }
@@ -103,7 +108,18 @@ fun TripScreen(modifier: Modifier = Modifier) {
                     style = MaterialTheme.typography.bodySmall,
                 )
             }
-            OutlinedButton(onClick = { TripService.stop(context) }) { Text("Stop trip") }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                // Stops the current blurb and drops the backlog without ending
+                // the trip. Harmless to press when nothing is speaking, so it
+                // needs no is-speaking state to drive its enabled-ness.
+                OutlinedButton(onClick = { Speech.clear() }) { Text("Silence") }
+                OutlinedButton(onClick = { TripService.stop(context) }) { Text("Stop trip") }
+            }
+            Text(
+                "Silence is also on the notification, so you can reach it " +
+                    "without unlocking.",
+                style = MaterialTheme.typography.bodySmall,
+            )
         } else {
             Text(
                 "Start a trip and leave the phone alone — you'll hear about " +
@@ -140,6 +156,57 @@ fun TripScreen(modifier: Modifier = Modifier) {
             )
         }
 
+        // Both settings below are read once when a trip starts, so they are
+        // hidden while one is running rather than offering a control that
+        // would silently do nothing.
+        if (!running) {
+            HorizontalDivider()
+
+            Column(modifier = Modifier.fillMaxWidth()) {
+                Text("Alert distance", style = MaterialTheme.typography.bodyMedium)
+                Text(
+                    "How far ahead a site announces itself. " +
+                        "3 miles is about 2½ minutes at 70 mph.",
+                    style = MaterialTheme.typography.bodySmall,
+                )
+                Spacer(Modifier.height(6.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    TripPreferences.RADIUS_CHOICES_MILES.forEach { miles ->
+                        FilterChip(
+                            selected = radiusMiles == miles,
+                            onClick = { TripPreferences.setRadiusMiles(context, miles) },
+                            label = { Text("${miles.toInt()} mi") },
+                        )
+                    }
+                }
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        "Announce sites already nearby",
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                    Text(
+                        if (announceAtStart) {
+                            "Testing: everything in range speaks when the trip starts"
+                        } else {
+                            "Normally off — you don't need telling about where you're parked"
+                        },
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                }
+                Switch(
+                    checked = announceAtStart,
+                    onCheckedChange = { TripPreferences.setAnnounceAtStart(context, it) },
+                )
+            }
+        }
+
         if (denied) {
             Text(
                 "Location permission is required to notice what you are driving past.",
@@ -159,9 +226,14 @@ fun TripScreen(modifier: Modifier = Modifier) {
         } else {
             LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 items(alerts) { alert ->
+                    val isSpeaking = speakingId == alert.marker.geomId
                     AlertCard(
                         alert = alert,
-                        onSpeak = { Speech.speak(context, alert.marker, alert.distanceMeters) },
+                        isSpeaking = isSpeaking,
+                        onSpeak = {
+                            if (isSpeaking) Speech.clear()
+                            else Speech.speak(context, alert.marker)
+                        },
                     )
                 }
             }
@@ -170,7 +242,7 @@ fun TripScreen(modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun AlertCard(alert: TripAlert, onSpeak: () -> Unit) {
+private fun AlertCard(alert: TripAlert, isSpeaking: Boolean, onSpeak: () -> Unit) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(12.dp)) {
             Text(alert.marker.name, style = MaterialTheme.typography.titleMedium)
@@ -186,7 +258,7 @@ private fun AlertCard(alert: TripAlert, onSpeak: () -> Unit) {
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.End,
             ) {
-                TextButton(onClick = onSpeak) { Text("Play") }
+                TextButton(onClick = onSpeak) { Text(if (isSpeaking) "Stop" else "Play") }
             }
         }
     }
