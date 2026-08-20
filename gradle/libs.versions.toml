@@ -4,11 +4,9 @@
 #
 # These versions are carried over from ChecklistV1, where they are known to
 # build and pass tests together. Libraries this project needs but ChecklistV1
-# never used — Hilt, Navigation Compose, play-services-location, and the HTTP
-# client — are deliberately NOT listed yet. They get added at the milestone
-# that first needs them, with the version verified live at that moment rather
-# than recalled. (ChecklistV1's CI lesson: pinned-from-memory versions were
-# three majors stale.)
+# never used are added at the milestone that first needs them, not up front,
+# with the version verified live at that moment rather than recalled.
+# (ChecklistV1 lesson: versions pinned from memory were three majors stale.)
 
 [versions]
 agp = "9.3.1"
@@ -25,6 +23,9 @@ ksp = "2.3.11"
 coroutinesTest = "1.11.0"
 turbine = "1.2.1"
 robolectric = "4.16.1"
+# Location + service, added in M3. Verified against Google Maven 2026-08-18.
+playServicesLocation = "21.4.0"
+lifecycleModern = "2.11.0"
 # :tools only — never shipped in the APK. Verified against Maven Central 2026-08-18.
 kotlinxSerialization = "1.9.0"
 sqliteJdbc = "3.49.1.0"
@@ -53,6 +54,9 @@ androidx-room-testing = { group = "androidx.room", name = "room-testing", versio
 kotlinx-coroutines-test = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-test", version.ref = "coroutinesTest" }
 turbine = { group = "app.cash.turbine", name = "turbine", version.ref = "turbine" }
 robolectric = { group = "org.robolectric", name = "robolectric", version.ref = "robolectric" }
+play-services-location = { group = "com.google.android.gms", name = "play-services-location", version.ref = "playServicesLocation" }
+androidx-lifecycle-service = { group = "androidx.lifecycle", name = "lifecycle-service", version.ref = "lifecycleModern" }
+androidx-lifecycle-runtime-compose = { group = "androidx.lifecycle", name = "lifecycle-runtime-compose", version.ref = "lifecycleModern" }
 kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "kotlinxSerialization" }
 sqlite-jdbc = { group = "org.xerial", name = "sqlite-jdbc", version.ref = "sqliteJdbc" }
 

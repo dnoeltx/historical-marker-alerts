@@ -2,14 +2,27 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <!--
-        Permissions arrive at the milestone that needs them, not up front:
-          M3 adds ACCESS_FINE_LOCATION, FOREGROUND_SERVICE,
-                  FOREGROUND_SERVICE_LOCATION and POST_NOTIFICATIONS,
-                  plus the location-typed TripService.
-        ACCESS_BACKGROUND_LOCATION is deliberately absent and stays absent for
-        v1 — "Start Trip" runs a foreground service started while the app is
-        visible, which only needs "While using the app".
+        Location while the app is in use. ACCESS_BACKGROUND_LOCATION is
+        deliberately ABSENT and stays absent for v1: "Start Trip" launches a
+        location-typed foreground service while the app is visible, and such a
+        service counts as "using the app" for as long as it runs. That buys a
+        screen-off drive with the phone in the cupholder without ever asking for
+        "Allow all the time" — which since Android 11 cannot even be requested
+        in the same dialog and requires a trip through system Settings.
     -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
+
+    <!-- Runtime-requested on API 33+; implicitly granted below that. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <!-- The whole point is a device with GPS, but do not hard-require it. -->
+    <uses-feature
+        android:name="android.hardware.location.gps"
+        android:required="false" />
 
     <application
         android:allowBackup="true"
@@ -29,6 +42,16 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!--
+            foregroundServiceType="location" is not optional on API 34+: starting
+            a location-typed service without it throws
+            MissingForegroundServiceTypeException at runtime.
+        -->
+        <service
+            android:name=".trip.TripService"
+            android:exported="false"
+            android:foregroundServiceType="location" />
 
     </application>
 
