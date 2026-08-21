@@ -96,9 +96,14 @@ class TripService : LifecycleService() {
                 TripState.recordFix(point)
 
                 val box = BoundingBox.around(point.lat, point.lon, detector.radiusMeters)
-                val nearby = dao.alertableInBoundingBox(
-                    box.minLat, box.maxLat, box.minLon, box.maxLon,
-                )
+                val nearby = try {
+                    dao.alertableInBoundingBox(
+                        box.minLat, box.maxLat, box.minLon, box.maxLon,
+                    )
+                } catch (e: Exception) {
+                    android.util.Log.e("TripService", "Failed to query markers", e)
+                    emptyList()
+                }
 
                 val alerts = detector.observe(point.lat, point.lon, nearby)
                 alerts.forEach { announce(it.marker, it.distanceMeters) }
