@@ -1,3 +1,5 @@
 <resources>
+    <!-- The debug build overrides this in app/src/debug/res/values/strings.xml
+         so the two can be told apart in the launcher. -->
     <string name="app_name">Marker Alerts</string>
 </resources>

@@ -220,6 +220,15 @@ be on the path.
 
 ## Known limitations
 
+- **Showing a site on the map interrupts navigation.** With turn-by-turn
+  running, Google Maps answers a `geo:` pin with "Exit navigation?" before it
+  will show the place. Adding the site as a stop instead — so Maps could offer
+  "adds 7 minutes" — is not possible: the standard Maps intents have no waypoint
+  parameter, the one that exists belongs to Android Automotive OS and starts a
+  new trip anyway, and nothing exposes the current destination for an app to
+  build a route around. The fix is an in-app map, which is why one is on the
+  roadmap.
+
 - Coverage is five states. The national dataset is 72,668 sites; the indexing
   strategy was chosen with that in mind.
 - No map. The data model keeps coordinates for one, but v1 is audio-first.
