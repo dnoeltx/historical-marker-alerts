@@ -128,15 +128,41 @@ fun main(args: Array<String>) {
     }
     DatabaseWriter(opts.output).write(enriched, roomIdentityHash = identityHash)
 
-    report(enriched, opts, http)
+    report(enriched, opts, http, wikipedia)
 
     if (enriched.none { it.alertable }) {
         System.err.println("No marker is alertable — matching is broken, not merely strict.")
         exitProcess(1)
     }
+
+    // The harvest must be complete, not merely finished.
+    //
+    // The first release shipped a database built from a run where 1,414 of
+    // 3,157 requests were rate-limit rejections. Roughly a third of the
+    // geosearch centres returned nothing and about half the summaries were
+    // dropped, and the run said "936 alertable (13.2%)" and exited zero. A
+    // partial harvest is worse than a failed one, because it looks like data.
+    val failures = wikipedia.geosearchFailures + wikipedia.summaryFailures
+    if (failures > 0 || http.givenUp > 0) {
+        System.err.println()
+        System.err.println("HARVEST INCOMPLETE — refusing to write a database that would look fine.")
+        System.err.println("  geosearch centres that failed : ${wikipedia.geosearchFailures}")
+        System.err.println("  summaries that failed to fetch: ${wikipedia.summaryFailures}")
+        System.err.println("  requests that exhausted retries: ${http.givenUp}")
+        System.err.println("  server pushback (429/5xx) events: ${http.throttled}")
+        System.err.println()
+        System.err.println("Rerun to pick up where it stopped — successful responses are cached,")
+        System.err.println("and failures are not, so a rerun only retries what actually failed.")
+        exitProcess(1)
+    }
 }
 
-private fun report(enriched: List<EnrichedMarker>, opts: Options, http: HttpCache) {
+private fun report(
+    enriched: List<EnrichedMarker>,
+    opts: Options,
+    http: HttpCache,
+    wikipedia: WikipediaClient,
+) {
     val alertable = enriched.count { it.alertable }
     val pct = 100.0 * alertable / enriched.size
 
@@ -148,6 +174,13 @@ private fun report(enriched: List<EnrichedMarker>, opts: Options, http: HttpCach
     println(" output             ${opts.output}")
     println(" http cache         ${http.hits} hits / ${http.misses} fetched" +
         if (http.expired > 0) " / ${http.expired} expired" else "")
+    if (http.poisoned > 0) {
+        println(" discarded          ${http.poisoned} cached failures from an older build")
+    }
+    println(" harvest health     ${wikipedia.geosearchFailures} centre failures, " +
+        "${wikipedia.summaryFailures} summary failures, " +
+        "${wikipedia.summaryUnusable} unusable summaries, " +
+        "${http.throttled} server pushbacks")
     println()
     println(" by state:")
     enriched.groupBy { it.marker.state }.toSortedMap().forEach { (state, rows) ->

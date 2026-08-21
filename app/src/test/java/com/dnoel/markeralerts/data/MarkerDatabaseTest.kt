@@ -49,6 +49,21 @@ class MarkerDatabaseTest {
         assertTrue("expected the five-state dataset, got $count rows", count > 7_000)
     }
 
+    /**
+     * The bound here was `alertable < total / 3`, and it was wrong — calibrated
+     * against a dataset built by a harvest that had silently lost half its data
+     * to rate limiting. That run produced 936 alertable rows (13.2%), which made
+     * a third look like a generous ceiling. With the harvest fixed the real
+     * figure is 2,946 (41.6%), and the old assertion failed.
+     *
+     * The lesson is not "relax the number until it passes". It is that a
+     * threshold derived from one observation of a system encodes that system's
+     * bugs. What this test can honestly assert is the property it was always
+     * reaching for: that being alertable is *earned* rather than universal, so
+     * a clear majority of listings stay silent. 60% is chosen to leave room for
+     * Wikipedia coverage improving over time without being so loose that a
+     * matcher which started accepting everything would slip past.
+     */
     @Test
     fun `the alertable subset is a real filter`() = runTest {
         val total = dao.count()
@@ -56,9 +71,29 @@ class MarkerDatabaseTest {
 
         assertTrue("nothing is alertable — matching or the asset is broken", alertable > 500)
         assertTrue(
-            "alertable ($alertable) should be a small fraction of $total; " +
-                "if it is most of them the relevance filter has stopped filtering",
-            alertable < total / 3,
+            "alertable ($alertable of $total) is most of the dataset; " +
+                "the relevance filter has stopped filtering",
+            alertable < total * 0.6,
+        )
+    }
+
+    /**
+     * A direct guard against the bug that made the previous assertion wrong.
+     *
+     * The broken harvest did not corrupt anything — it just quietly matched far
+     * fewer markers than it should have, and every symptom looked like "the
+     * data is a bit thin". A floor calibrated against the repaired dataset
+     * (2,946) catches a regression that would otherwise look like normal
+     * variation.
+     */
+    @Test
+    fun `the harvest did not silently lose most of its matches`() = runTest {
+        val alertable = dao.alertableCount()
+
+        assertTrue(
+            "only $alertable alertable rows — the rate-limited harvest produced 936 " +
+                "and a healthy one produces about 2,900. Check the run's harvest health line.",
+            alertable > 2_000,
         )
     }
 
