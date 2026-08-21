@@ -65,6 +65,27 @@ android {
                 enable = false
             }
         }
+
+        debug {
+            // A separate package so the debug build and an installed release
+            // can live on the same phone at once.
+            //
+            // Without this, `installDebug` fails against a sideloaded release
+            // with INSTALL_FAILED_VERSION_DOWNGRADE — versionCode 1 against
+            // 10100 — and the signing keys differ too, so the only way through
+            // is uninstalling the release first. That means losing the build
+            // you actually drive with every time you want to test a change.
+            //
+            // The two do not share preferences or notification channels, which
+            // here is a feature: experiments on the debug build cannot disturb
+            // the settings on the one going in the car.
+            applicationIdSuffix = ".debug"
+            versionNameSuffix = "-debug"
+            // The launcher label is overridden by app/src/debug/res, not by
+            // resValue — AGP 9 disables custom resource values unless
+            // buildFeatures.resValues is turned on, and a source-set override
+            // needs no flag and no generated code.
+        }
     }
 
     compileOptions {

@@ -36,7 +36,8 @@ class TripService : LifecycleService() {
 
     override fun onCreate() {
         super.onCreate()
-        TripNotifications.createChannels(this)
+        // Channels are registered by MarkerAlertsApp at process start, so they
+        // exist in system settings before a trip is ever run.
         locationSource = FusedLocationSource(applicationContext)
     }
 

@@ -1,0 +1,11 @@
+<resources>
+    <!--
+      Debug-only override. With applicationIdSuffix ".debug" the debug build
+      installs alongside a release build, and two launcher icons both reading
+      "Marker Alerts" is worse than having only one of them.
+
+      Resources in the debug source set win over the same name in main, so this
+      needs no Gradle flag and no generated code.
+    -->
+    <string name="app_name">Marker Alerts (debug)</string>
+</resources>
