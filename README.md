@@ -44,17 +44,44 @@ matched to it during ingestion.** If no one wrote an article about it, there is
 nothing to read aloud, and it almost certainly is not worth stopping for. One
 rule solves relevance and content at the same time.
 
-That takes 7,084 sites down to **936 alertable** — 13.2%.
+That takes 7,084 sites down to **2,946 alertable** — 41.6%.
 
 | State | Sites | Alertable | |
 |---|--:|--:|--:|
-| Texas | 2,745 | 320 | 11.7% |
-| Utah | 1,391 | 242 | 17.4% |
-| Colorado | 1,170 | 176 | 15.0% |
-| Arizona | 1,109 | 67 | 6.0% |
-| New Mexico | 669 | 131 | 19.6% |
+| Texas | 2,745 | 720 | 26.2% |
+| Utah | 1,391 | 821 | 59.0% |
+| Colorado | 1,170 | 579 | 49.5% |
+| Arizona | 1,109 | 366 | 33.0% |
+| New Mexico | 669 | 460 | 68.8% |
 
-Arizona is an unexplained outlier and is on the list to investigate.
+### The bug those numbers used to hide
+
+The first three releases shipped a database with **936** alertable sites, not
+2,946, and Arizona sat at 6.0% against 15–20% elsewhere. That looked like a
+quirk of Wikipedia's coverage. It was not.
+
+The harvest had been rate-limited. Wikipedia answered **1,414 of 3,157 requests
+with HTTP 429**, and the cache persisted anything with a status below 500 — a
+rule that is right for a 404 ("no such article" stays true) and wrong for a 429
+("you asked too fast" does not). The failures were written to disk as though
+they were data, so every later run replayed them and rebuilt the same
+incomplete database, deterministically, while reporting success.
+
+Both stages were degraded: roughly 426 of 1,206 geosearch centres returned
+nothing, and about half the article summaries were discarded. A match could pass
+the name test and then vanish because its blurb had been rate-limited away —
+silently, with no counter and no warning.
+
+Three changes came out of it, and the third matters most:
+
+- transient statuses are never cached, and any already on disk are deleted and
+  refetched, so a poisoned cache heals itself
+- requests are paced with exponential backoff honouring `Retry-After`
+- **the run now refuses to write a database if any fetch failed.** A partial
+  harvest is worse than a failed one, because it looks like data.
+
+Arizona was never an outlier. It was the state where a global failure happened
+to bite hardest.
 
 Matching a National Register name to a Wikipedia title is harder than it looks.
 The register stores names inverted (*"Barr, William Braxton, House"*), Wikipedia
@@ -182,9 +209,15 @@ identical database while reporting success.
 - **Route replay.** A 600-mile drive cannot be a test loop, so `RouteReplay`
   drives the detector along a synthetic route and reports what fired and where.
   This immediately exposed an **alert storm**: 71 alerts on Austin → Denver, a
-  median gap of 0.0 km, firing at 81 m — i.e. after you had already passed. Now
-  20 alerts, a 0.5 km median gap, firing at 4,300–4,800 m. The cause was cities,
-  not the historic-district clustering that had been predicted.
+  median gap of 0.0 km, firing at 81 m — i.e. after you had already passed.
+  Fixing the detector brought that to a 0.5 km median gap, firing at
+  4,300–4,800 m. The cause was cities, not the historic-district clustering that
+  had been predicted.
+
+  The same harness measured the cost of repairing the harvest: with three times
+  as many alertable sites, the route went from 20 alerts to **76** — one every
+  11 miles. Density is managed by the detector's one-alert-per-fix cap and by
+  the speech queue, not by shipping less data.
 - **Robolectric DAO tests** open the real prepackaged database, which is what
   proves the hand-written pipeline schema and Room's compiled schema agree.
 - **Mutation testing** to prove the suite is not vacuous — deliberately breaking

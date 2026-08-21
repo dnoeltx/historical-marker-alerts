@@ -19,6 +19,23 @@ class WikipediaClient(
     private val http: HttpCache,
     private val json: Json,
 ) {
+    /**
+     * Counters, because a failed fetch used to be indistinguishable from a
+     * marker that genuinely has no article. Both produced a non-alertable row
+     * and neither said anything, which is how a harvest that lost half its
+     * data reported success.
+     */
+    var geosearchFailures = 0
+        private set
+
+    /** Summaries that could not be fetched at all — network or HTTP failure. */
+    var summaryFailures = 0
+        private set
+
+    /** Summaries fetched successfully but unusable: disambiguation, no text. */
+    var summaryUnusable = 0
+        private set
+
     /** Geotagged articles within [radiusMeters] of the point, nearest first. */
     fun geosearch(lat: Double, lon: Double, radiusMeters: Int): List<GeoResult> {
         val url = buildString {
@@ -28,7 +45,10 @@ class WikipediaClient(
             append("&gslimit=500&format=json")
         }
         val response = http.get(url)
-        if (!response.ok) return emptyList()
+        if (!response.ok) {
+            geosearchFailures++
+            return emptyList()
+        }
         return runCatching { json.decodeFromString<GeoSearchResponse>(response.body) }
             .getOrNull()?.query?.geosearch.orEmpty()
     }
@@ -42,12 +62,19 @@ class WikipediaClient(
         val url = "https://en.wikipedia.org/api/rest_v1/page/summary/" +
             encode(title.replace(' ', '_'))
         val response = http.get(url)
-        if (!response.ok) return null
+        if (!response.ok) {
+            // A match that passed the name test and then lost its blurb to a
+            // rate limit is a bug, not an absent article. Counted separately
+            // from "fetched but unusable" so the two never get confused again.
+            summaryFailures++
+            return null
+        }
 
         val summary = runCatching { json.decodeFromString<WikiSummary>(response.body) }.getOrNull()
-            ?: return null
-        if (summary.type == "disambiguation") return null
-        if (summary.extract.isNullOrBlank()) return null
+        if (summary == null || summary.type == "disambiguation" || summary.extract.isNullOrBlank()) {
+            summaryUnusable++
+            return null
+        }
         return summary
     }
 
