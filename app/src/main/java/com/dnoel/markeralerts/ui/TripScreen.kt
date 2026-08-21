@@ -267,6 +267,19 @@ fun TripScreen(modifier: Modifier = Modifier) {
             )
         }
 
+        // Measured on a Galaxy S24 with navigation running: a geo: pin makes
+        // Google Maps ask "Exit navigation?" before it will show the place.
+        // There is no intent that adds a stop to a route already in progress,
+        // so this is a limitation to disclose rather than a bug to fix — see
+        // the comment on MapLink.
+        if (alerts.isNotEmpty()) {
+            Text(
+                "Showing a site on the map interrupts turn-by-turn navigation — " +
+                    "Google Maps will ask before it does.",
+                style = MaterialTheme.typography.bodySmall,
+            )
+        }
+
         Spacer(Modifier.height(8.dp))
 
         if (alerts.isEmpty()) {
@@ -316,7 +329,7 @@ private fun AlertCard(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.End,
             ) {
-                TextButton(onClick = onMap) { Text("Map") }
+                TextButton(onClick = onMap) { Text("Show on map") }
                 TextButton(onClick = onSpeak) { Text(if (isSpeaking) "Stop" else "Play") }
             }
         }

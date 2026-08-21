@@ -16,6 +16,28 @@ import java.util.Locale
  * It also lands on the Android Auto display, since Maps is already projecting
  * there, which is where the decision to take the exit actually gets made.
  *
+ * ## Known limitation, measured rather than assumed
+ *
+ * With turn-by-turn already running, Google Maps answers a `geo:` pin with
+ * **"Exit navigation?"** before it will show the place. Verified on a Galaxy
+ * S24 mid-route. A bare `geo:lat,lon?z=15` map view avoids the prompt, but Maps
+ * then ignores the intent entirely and nothing happens — so there is no third
+ * behaviour to reach for.
+ *
+ * The obvious fix — add the site as a stop, and let Maps say "adds 7 minutes" —
+ * is not available to a third-party app:
+ *
+ *  - the standard Maps intents (`geo:`, `google.navigation:`) have no waypoint
+ *    parameter at all
+ *  - the `waypoints` parameter that does exist belongs to **Android Automotive
+ *    OS** (Google built into the car), not Android Auto phone projection, and
+ *    even there it starts a new trip rather than amending a running one
+ *  - nothing exposes the current navigation destination, so the app could not
+ *    reconstruct "existing route plus this stop" even if an intent accepted it
+ *
+ * Maps' own "Add stop" button is in-app UI, not an API. The real fix is showing
+ * the site on a map inside this app, which is the v2 map screen.
+ *
  * Pure string work so the format can be tested without a device.
  */
 object MapLink {
