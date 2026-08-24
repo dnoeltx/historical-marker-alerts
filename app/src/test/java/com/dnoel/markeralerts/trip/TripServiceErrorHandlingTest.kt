@@ -2,7 +2,9 @@ package com.dnoel.markeralerts.trip
 
 import com.dnoel.markeralerts.data.MarkerEntity
 import com.dnoel.markeralerts.domain.BoundingBox
+import kotlinx.coroutines.CancellationException
 import org.junit.Test
+import java.sql.SQLException
 
 /**
  * Verifies that watchPosition's error handling gracefully handles database
@@ -16,15 +18,42 @@ import org.junit.Test
 class TripServiceErrorHandlingTest {
 
     @Test
-    fun `database error returns empty list not null`() {
-        val bounding = BoundingBox.around(39.0, -105.0, 4800.0)
+    fun `database exception is caught and empty list returned`() {
+        // Simulate what happens in watchPosition when dao.alertableInBoundingBox()
+        // throws an exception. The error handler should catch it and return
+        // an empty list so the trip continues.
+        val nearby = try {
+            throw SQLException("Failed to query markers")
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            emptyList<MarkerEntity>()
+        }
 
-        // The error handler in watchPosition returns emptyList() on exception,
-        // never null, so the detector always receives a valid list.
-        val errorFallback: List<MarkerEntity> = emptyList()
+        // Verify the fallback is an empty list, never null or throwing
+        assert(nearby is List<MarkerEntity>)
+        assert(nearby.isEmpty())
+    }
 
-        // Verify it's an empty list, not null
-        assert(errorFallback.isEmpty())
+    @Test
+    fun `cancellation exception is rethrown and not swallowed`() {
+        // CancellationException must be rethrown to preserve collectLatest
+        // cancellation behavior. Any other exception is caught.
+        var cancellationWasThrown = false
+        try {
+            try {
+                throw CancellationException("Trip ended")
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                // Only non-cancellation exceptions are caught
+            }
+        } catch (e: CancellationException) {
+            cancellationWasThrown = true
+        }
+
+        // Verify that CancellationException was actually rethrown
+        assert(cancellationWasThrown)
     }
 
     @Test

@@ -13,6 +13,7 @@ import com.dnoel.markeralerts.data.MarkerEntity
 import com.dnoel.markeralerts.domain.BoundingBox
 import com.dnoel.markeralerts.domain.ProximityDetector
 import com.dnoel.markeralerts.speech.Speech
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 
@@ -100,6 +101,8 @@ class TripService : LifecycleService() {
                     dao.alertableInBoundingBox(
                         box.minLat, box.maxLat, box.minLon, box.maxLon,
                     )
+                } catch (e: CancellationException) {
+                    throw e
                 } catch (e: Exception) {
                     android.util.Log.e("TripService", "Failed to query markers", e)
                     emptyList()
