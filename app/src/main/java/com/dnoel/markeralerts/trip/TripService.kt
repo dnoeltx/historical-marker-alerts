@@ -108,8 +108,16 @@ class TripService : LifecycleService() {
                     emptyList()
                 }
 
-                val alerts = detector.observe(point.lat, point.lon, nearby)
-                alerts.forEach { announce(it.marker, it.distanceMeters) }
+                val alerts = detector.observe(
+                    point.lat,
+                    point.lon,
+                    nearby,
+                    // trustedCourseDegrees, not courseDegrees: a course read
+                    // while stopped is GPS noise, and pointing a driver down it
+                    // would be worse than saying nothing.
+                    courseDegrees = point.trustedCourseDegrees,
+                )
+                alerts.forEach { announce(it.marker, it.distanceMeters, it.offRouteMeters) }
                 TripState.recordSilenced(detector.suppressedMarkers())
 
                 if (alerts.isNotEmpty()) refreshOngoing()
@@ -117,21 +125,25 @@ class TripService : LifecycleService() {
         }
     }
 
-    private fun announce(marker: MarkerEntity, distanceMeters: Double) {
+    private fun announce(
+        marker: MarkerEntity,
+        distanceMeters: Double,
+        offRouteMeters: Double?,
+    ) {
         TripState.recordAlert(
-            TripAlert(marker, distanceMeters, System.currentTimeMillis()),
+            TripAlert(marker, distanceMeters, System.currentTimeMillis(), offRouteMeters),
         )
         getSystemService(NotificationManager::class.java).notify(
             // A stable per-marker id so an alert never replaces a different one.
             marker.geomId.hashCode(),
-            TripNotifications.alert(this, marker, distanceMeters),
+            TripNotifications.alert(this, marker, offRouteMeters),
         )
 
         // With auto-speak on the driver never touches the phone, which is the
         // point of the app. With it off the notification still fires and
         // tapping it reads the same sentence.
         if (TripPreferences.autoSpeak.value) {
-            Speech.speak(this, marker)
+            Speech.speak(this, marker, offRouteMeters)
         }
     }
 

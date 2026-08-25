@@ -11,6 +11,8 @@ data class TripAlert(
     val marker: MarkerEntity,
     val distanceMeters: Double,
     val atMillis: Long,
+    /** How far off the line of travel, or null when the course was unknown. */
+    val offRouteMeters: Double? = null,
 )
 
 /**

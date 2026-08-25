@@ -51,10 +51,10 @@ object Speech {
     }
 
     /** Reads a marker aloud, behind anything already speaking. */
-    fun speak(context: Context, marker: MarkerEntity) {
+    fun speak(context: Context, marker: MarkerEntity, offRouteMeters: Double? = null) {
         ensure(context).enqueue(
             id = marker.geomId,
-            text = Utterance.forMarker(marker),
+            text = Utterance.forMarker(marker, offRouteMeters),
         )
     }
 

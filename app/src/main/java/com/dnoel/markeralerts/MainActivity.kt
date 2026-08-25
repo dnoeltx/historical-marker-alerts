@@ -56,18 +56,32 @@ class MainActivity : ComponentActivity() {
     private fun speakIfRequested(intent: Intent?) {
         val geomId = intent?.getStringExtra(EXTRA_SPEAK_MARKER_ID) ?: return
 
+        // Absent whenever the course was unknown when the alert fired, so the
+        // sentence falls back to the name alone rather than to a made-up
+        // direction. hasExtra is the test, not a sentinel value: every real
+        // double, zero included, is a meaningful offset.
+        val offRouteMeters = if (intent.hasExtra(EXTRA_OFF_ROUTE_METERS)) {
+            intent.getDoubleExtra(EXTRA_OFF_ROUTE_METERS, 0.0)
+        } else {
+            null
+        }
+
         // Consume it, or rotating the device would replay the same blurb.
         intent.removeExtra(EXTRA_SPEAK_MARKER_ID)
+        intent.removeExtra(EXTRA_OFF_ROUTE_METERS)
 
         lifecycleScope.launch {
             val marker = MarkerDatabase.build(applicationContext).markerDao().byId(geomId)
                 ?: return@launch
-            Speech.speak(this@MainActivity, marker)
+            Speech.speak(this@MainActivity, marker, offRouteMeters)
         }
     }
 
     companion object {
         /** Set when the user taps an alert notification; read by [speakIfRequested]. */
         const val EXTRA_SPEAK_MARKER_ID = "speak_marker_id"
+
+        /** Optional companion to [EXTRA_SPEAK_MARKER_ID]; absent means no known course. */
+        const val EXTRA_OFF_ROUTE_METERS = "speak_off_route_meters"
     }
 }

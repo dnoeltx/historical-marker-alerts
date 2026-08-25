@@ -107,11 +107,19 @@ object TripNotifications {
             .setForegroundServiceBehavior(NotificationCompat.FOREGROUND_SERVICE_IMMEDIATE)
             .build()
 
-    fun alert(context: Context, marker: MarkerEntity, distanceMeters: Double): Notification {
-        val miles = distanceMeters / 1609.344
-        return NotificationCompat.Builder(context, CHANNEL_ALERTS)
+    /**
+     * [offRouteMeters] rather than a distance: alerts fire on entry to the
+     * radius, so the distance is always the radius and saying it told the user
+     * only what they had already configured. How far off the line of travel a
+     * site sits is the part that varies.
+     *
+     * A screen can afford precision that speech cannot, so this shows a number
+     * where [Utterance.offRoutePhrase] rounds to half miles.
+     */
+    fun alert(context: Context, marker: MarkerEntity, offRouteMeters: Double?): Notification =
+        NotificationCompat.Builder(context, CHANNEL_ALERTS)
             .setContentTitle(marker.name)
-            .setContentText("${"%.1f".format(miles)} mi — tap to hear about it")
+            .setContentText("${offRouteLabel(offRouteMeters)}tap to hear about it")
             // The blurb is long; BigTextStyle is what lets an expanded
             // notification show more than one line of it.
             .setStyle(NotificationCompat.BigTextStyle().bigText(marker.blurb.orEmpty()))
@@ -119,8 +127,14 @@ object TripNotifications {
             .setCategory(NotificationCompat.CATEGORY_NAVIGATION)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setAutoCancel(true)
-            .setContentIntent(speak(context, marker))
+            .setContentIntent(speak(context, marker, offRouteMeters))
             .build()
+
+    /** Leading half of the notification line, empty when the course was unknown. */
+    private fun offRouteLabel(offRouteMeters: Double?): String = when {
+        offRouteMeters == null -> ""
+        offRouteMeters < ON_ROUTE_METERS -> "On your route — "
+        else -> "${"%.1f".format(offRouteMeters / METERS_PER_MILE)} mi off route — "
     }
 
     /** Distinct request codes keep PendingIntents from overwriting each other. */
@@ -158,12 +172,25 @@ object TripNotifications {
      * Tapping an alert opens the app pointed at that marker. In M4 this is what
      * triggers speech; for now it simply brings the detail into view.
      */
-    private fun speak(context: Context, marker: MarkerEntity): PendingIntent =
+    private fun speak(
+        context: Context,
+        marker: MarkerEntity,
+        offRouteMeters: Double?,
+    ): PendingIntent =
         PendingIntent.getActivity(
             context,
             marker.geomId.hashCode(),
             Intent(context, MainActivity::class.java)
-                .putExtra(MainActivity.EXTRA_SPEAK_MARKER_ID, marker.geomId),
+                .putExtra(MainActivity.EXTRA_SPEAK_MARKER_ID, marker.geomId)
+                // Carried on the intent rather than looked up later so the
+                // tapped sentence matches the one that was announced, even if
+                // the process died and the trip's list is gone.
+                .apply {
+                    offRouteMeters?.let { putExtra(MainActivity.EXTRA_OFF_ROUTE_METERS, it) }
+                },
             PendingIntent.FLAG_IMMUTABLE,
         )
+
+    private const val ON_ROUTE_METERS = 150.0
+    private const val METERS_PER_MILE = 1609.344
 }

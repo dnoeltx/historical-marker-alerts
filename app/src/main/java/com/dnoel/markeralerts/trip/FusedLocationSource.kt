@@ -39,7 +39,21 @@ class FusedLocationSource(
 
         val callback = object : LocationCallback() {
             override fun onLocationResult(result: LocationResult) {
-                result.lastLocation?.let { trySend(TrackPoint(it.latitude, it.longitude)) }
+                result.lastLocation?.let {
+                    trySend(
+                        TrackPoint(
+                            lat = it.latitude,
+                            lon = it.longitude,
+                            // Both are optional on a Location and absent on the
+                            // first fix or two. hasBearing()/hasSpeed() are the
+                            // only honest test — the getters return 0.0 when
+                            // unset, which is a valid due-north course and would
+                            // point every alert the same wrong way.
+                            courseDegrees = if (it.hasBearing()) it.bearing.toDouble() else null,
+                            speedMetersPerSecond = if (it.hasSpeed()) it.speed.toDouble() else null,
+                        ),
+                    )
+                }
             }
         }
 

@@ -297,7 +297,7 @@ fun TripScreen(modifier: Modifier = Modifier) {
                         isSpeaking = isSpeaking,
                         onSpeak = {
                             if (isSpeaking) Speech.clear()
-                            else Speech.speak(context, alert.marker)
+                            else Speech.speak(context, alert.marker, alert.offRouteMeters)
                         },
                         onMap = { mapFailed = !openMap(context, alert.marker) },
                     )
@@ -318,7 +318,18 @@ private fun AlertCard(
         Column(Modifier.padding(12.dp)) {
             Text(alert.marker.name, style = MaterialTheme.typography.titleMedium)
             Text(
-                "${"%.1f".format(alert.distanceMeters / 1609.344)} mi away",
+                buildString {
+                    append("${"%.1f".format(alert.distanceMeters / 1609.344)} mi away")
+                    // Only the offset varies between alerts — the distance is
+                    // always the configured radius, because that is when they
+                    // fire. Null means the course was unknown at the time.
+                    alert.offRouteMeters?.let {
+                        append(
+                            if (it < 150.0) " · on your route"
+                            else " · ${"%.1f".format(it / 1609.344)} mi off route",
+                        )
+                    }
+                },
                 style = MaterialTheme.typography.bodySmall,
             )
             alert.marker.blurb?.let {
