@@ -84,4 +84,64 @@ class UtteranceTest {
         assertEquals("Just ahead", Utterance.distancePhrase(700.0))
         assertEquals("Just ahead", Utterance.distancePhrase(0.0))
     }
+
+    @Test
+    fun `no known course leaves the sentence exactly as it was`() {
+        // The guard on the whole feature. A cold-start fix, a phone sitting in
+        // a driveway, or a replay without courses must produce the sentence
+        // that shipped in v1 — not a direction invented from noise.
+        assertEquals(
+            Utterance.forMarker(marker()),
+            Utterance.forMarker(marker(), offRouteMeters = null),
+        )
+        assertFalse(Utterance.forMarker(marker()).contains("route"))
+    }
+
+    @Test
+    fun `a site on the road you are already on says so`() {
+        val text = Utterance.forMarker(marker(), offRouteMeters = 40.0)
+
+        assertTrue(text, text.startsWith("Paramount Theatre, right on your route."))
+    }
+
+    @Test
+    fun `a short way off the line of travel is just off your route`() {
+        // Between the on-route threshold and half a mile there is no number
+        // worth saying — "just off" is the whole of the useful information.
+        assertEquals("just off your route", Utterance.offRoutePhrase(400.0))
+    }
+
+    @Test
+    fun `further out is spoken in half miles, in words`() {
+        // "zero point five miles" is what a TTS engine does with 0.5, and it is
+        // four syllables worse than "half a mile".
+        assertEquals("about half a mile off your route", Utterance.offRoutePhrase(850.0))
+        assertEquals("about a mile off your route", Utterance.offRoutePhrase(1_609.0))
+        assertEquals("about 1.5 miles off your route", Utterance.offRoutePhrase(2_400.0))
+        assertEquals("about 2 miles off your route", Utterance.offRoutePhrase(3_200.0))
+    }
+
+    @Test
+    fun `the direction comes before the blurb, not after it`() {
+        // A driver decides whether to care in the first second. Burying the
+        // one useful fact behind a 300-character Wikipedia extract wastes it.
+        val text = Utterance.forMarker(marker(), offRouteMeters = 40.0)
+
+        assertTrue(text, text.indexOf("your route") < text.indexOf("A 1915 theatre"))
+    }
+
+    @Test
+    fun `a marker with no blurb still gets its direction`() {
+        assertEquals(
+            "Paramount Theatre, right on your route.",
+            Utterance.forMarker(marker(blurb = null), offRouteMeters = 10.0),
+        )
+    }
+
+    @Test
+    fun `Wikipedia is still credited when a direction is present`() {
+        val text = Utterance.forMarker(marker(), offRouteMeters = 2_400.0)
+
+        assertTrue(text, text.endsWith("From Wikipedia."))
+    }
 }

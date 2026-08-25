@@ -41,7 +41,15 @@ class RouteReplay(
             val box = BoundingBox.around(point.lat, point.lon, detector.radiusMeters)
             val nearby = candidates(box)
 
-            detector.observe(point.lat, point.lon, nearby).forEach { alert ->
+            detector.observe(
+                point.lat,
+                point.lon,
+                nearby,
+                // Tracks built by Track.alongRoute carry a course; a hand-written
+                // list of bare points does not, and replays exactly as it did
+                // before courses existed.
+                courseDegrees = point.trustedCourseDegrees,
+            ).forEach { alert ->
                 events += ReplayEvent(alert, index, travelled)
             }
         }

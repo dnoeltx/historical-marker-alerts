@@ -150,4 +150,56 @@ class RouteReplayTest {
         val sorted = values.sorted()
         return sorted[sorted.size / 2]
     }
+
+    @Test
+    fun `every alert on a real route knows how far off route it is`() = runTest {
+        val detector = ProximityDetector(radiusMeters = 4_800.0)
+        val track = Track.alongRoute(austinToDenver, stepMeters = 500.0)
+        val events = replay(detector).run(track)
+
+        assertTrue("no alerts to check", events.isNotEmpty())
+
+        // Track.alongRoute stamps a course on every point, so there is no
+        // excuse for an unknown one here. A null would mean the course stopped
+        // being threaded through somewhere between the track and the detector.
+        assertTrue(
+            "some alerts had no off-route distance",
+            events.all { it.alert.offRouteMeters != null },
+        )
+    }
+
+    @Test
+    fun `off-route distance never exceeds the alert radius`() = runTest {
+        val radius = 4_800.0
+        val detector = ProximityDetector(radiusMeters = radius)
+        val track = Track.alongRoute(austinToDenver, stepMeters = 500.0)
+        val events = replay(detector).run(track)
+
+        // It is the side of a right triangle whose hypotenuse is the distance,
+        // and the distance is inside the radius by definition. Anything larger
+        // means the trigonometry is wrong, most likely a degrees/radians slip.
+        val worst = events.maxOf { it.alert.offRouteMeters!! }
+        assertTrue("worst off-route was $worst against a radius of $radius", worst <= radius)
+    }
+
+    @Test
+    fun `off-route distance actually varies across a drive`() = runTest {
+        val detector = ProximityDetector(radiusMeters = 4_800.0)
+        val track = Track.alongRoute(austinToDenver, stepMeters = 500.0)
+        val events = replay(detector).run(track)
+
+        val offRoute = events.map { it.alert.offRouteMeters!! }
+        val onRoute = offRoute.count { it < 150.0 }
+        val wellOff = offRoute.count { it > 1_600.0 }
+
+        // This is the assertion the spoken distance would have failed, and the
+        // reason it was cut: alerts fire on entry to the radius, so distance is
+        // always 90-100% of it and says nothing. A real drive must produce both
+        // sites on the road ahead and sites well off to one side, or this
+        // feature is repeating the same mistake with different words.
+        assertTrue(
+            "of ${offRoute.size} alerts, $onRoute were on route and $wellOff were a mile-plus off",
+            onRoute > 0 && wellOff > 0,
+        )
+    }
 }

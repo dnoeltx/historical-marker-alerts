@@ -6,6 +6,17 @@ import com.dnoel.markeralerts.data.MarkerEntity
 data class ProximityAlert(
     val marker: MarkerEntity,
     val distanceMeters: Double,
+    /**
+     * How far to the side of the current course the marker lies, or null when
+     * the course was unknown.
+     *
+     * This is the only part of an alert that varies. Alerts fire on entry to
+     * the radius, so [distanceMeters] is always 90-100% of it — which is why
+     * the spoken distance was dropped after the first real drive. A site can be
+     * anywhere on that circle, though, so how far off the line of travel it
+     * sits is the fact that actually decides whether it is worth stopping for.
+     */
+    val offRouteMeters: Double? = null,
 )
 
 /**
@@ -56,7 +67,29 @@ class ProximityDetector(
      * [BoundingBox.around]`(lat, lon, radiusMeters)` — this refines that
      * rectangle to a true circle and applies the alerting rules.
      */
-    fun observe(lat: Double, lon: Double, candidates: List<MarkerEntity>): List<ProximityAlert> {
+    fun observe(
+        lat: Double,
+        lon: Double,
+        candidates: List<MarkerEntity>,
+        courseDegrees: Double? = null,
+    ): List<ProximityAlert> {
+        // A trailing default keeps every existing caller and test compiling: a
+        // detector asked without a course behaves exactly as it did before, and
+        // reports a null offset rather than guessing at one.
+        fun alertFor(marker: MarkerEntity, distance: Double) = ProximityAlert(
+            marker = marker,
+            distanceMeters = distance,
+            offRouteMeters = courseDegrees?.let { course ->
+                crossTrackMeters(
+                    distance,
+                    relativeBearingDegrees(
+                        course,
+                        bearingDegrees(lat, lon, marker.lat, marker.lon),
+                    ),
+                )
+            },
+        )
+
         val inRange = candidates
             .filter { it.geomId !in settled }
             .map { it to haversineMeters(lat, lon, it.lat, it.lon) }
@@ -84,7 +117,7 @@ class ProximityDetector(
             // time and drops whatever goes stale.
             return inRange.sortedBy { it.second }.map { (marker, distance) ->
                 settled += marker.geomId
-                ProximityAlert(marker, distance)
+                alertFor(marker, distance)
             }
         }
 
@@ -100,7 +133,7 @@ class ProximityDetector(
                 // driven into range and are therefore approaching. Waiting in
                 // that case would burn part of the warning distance.
                 if (distance >= radiusMeters * EDGE_FRACTION) {
-                    candidateAlerts += ProximityAlert(marker, distance)
+                    candidateAlerts += alertFor(marker, distance)
                 }
                 continue
             }
@@ -113,7 +146,7 @@ class ProximityDetector(
                 continue
             }
 
-            candidateAlerts += ProximityAlert(marker, distance)
+            candidateAlerts += alertFor(marker, distance)
         }
 
         // Closest first: if several land at once, the most imminent is the one

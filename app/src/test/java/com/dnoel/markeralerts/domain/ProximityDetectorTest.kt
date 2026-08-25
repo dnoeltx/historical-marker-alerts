@@ -2,6 +2,7 @@ package com.dnoel.markeralerts.domain
 
 import com.dnoel.markeralerts.data.MarkerEntity
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -185,5 +186,77 @@ class ProximityDetectorTest {
 
         assertEquals(1, wide.observe(39.0, -105.0, listOf(target)).size)
         assertTrue(narrow.observe(39.0, -105.0, listOf(target)).isEmpty())
+    }
+
+    @Test
+    fun `without a course an alert reports no off-route distance`() {
+        // Every caller that predates courses, and every fix taken while
+        // stopped. Null must mean "unknown", never "zero".
+        val detector = ProximityDetector(radiusMeters = 1000.0)
+        val target = marker("a", northOf(39.0, 1500.0), -105.0)
+        detector.primeAwayFrom(listOf(target))
+
+        val alerts = detector.observe(northOf(39.0, 550.0), -105.0, listOf(target))
+
+        assertEquals(1, alerts.size)
+        assertNull(alerts.first().offRouteMeters)
+    }
+
+    @Test
+    fun `driving straight at a marker reports it as on route`() {
+        val detector = ProximityDetector(radiusMeters = 1000.0)
+        val target = marker("a", northOf(39.0, 1500.0), -105.0)
+        detector.primeAwayFrom(listOf(target))
+
+        // Heading due north, with the marker due north of us.
+        val alerts = detector.observe(
+            northOf(39.0, 550.0),
+            -105.0,
+            listOf(target),
+            courseDegrees = 0.0,
+        )
+
+        assertEquals(1, alerts.size)
+        assertEquals(0.0, alerts.first().offRouteMeters!!, 1.0)
+    }
+
+    @Test
+    fun `a marker square to the side is fully off route`() {
+        val detector = ProximityDetector(radiusMeters = 1000.0)
+        val target = marker("a", northOf(39.0, 1500.0), -105.0)
+        detector.primeAwayFrom(listOf(target))
+
+        // Same geometry, but now driving east: the marker is off the left
+        // shoulder rather than up the road, and the same 950 m distance means
+        // something completely different to a driver.
+        val alerts = detector.observe(
+            northOf(39.0, 550.0),
+            -105.0,
+            listOf(target),
+            courseDegrees = 90.0,
+        )
+
+        assertEquals(1, alerts.size)
+        val alert = alerts.first()
+        assertEquals(alert.distanceMeters, alert.offRouteMeters!!, 1.0)
+    }
+
+    @Test
+    fun `the same marker at the same distance can be on route or not`() {
+        // The point of the whole feature, in one assertion: distance is fixed
+        // by when alerts fire, so it cannot tell these two apart. Direction can.
+        fun offRouteOn(course: Double): Double {
+            val detector = ProximityDetector(radiusMeters = 1000.0)
+            val target = marker("a", northOf(39.0, 1500.0), -105.0)
+            detector.primeAwayFrom(listOf(target))
+            return detector.observe(
+                northOf(39.0, 550.0),
+                -105.0,
+                listOf(target),
+                courseDegrees = course,
+            ).first().offRouteMeters!!
+        }
+
+        assertTrue(offRouteOn(90.0) - offRouteOn(0.0) > 900.0)
     }
 }
